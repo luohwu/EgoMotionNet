@@ -103,7 +103,7 @@ class EGO4D_Dataset(Dataset):
         del tensor_images_list
 
         tensor_images = tensor_images.view(self.num_blocks, self.block_len, C, H, W).transpose(1, 2)
-        return tensor_images # (num_blocks,C,block_len,H,W) i.e. (6,3,5,128,128)
+        return tensor_images,df_item # (num_blocks,C,block_len,H,W) i.e. (6,3,5,128,128)
 
     def __len__(self):
         return self.data.shape[0]
@@ -111,17 +111,11 @@ class EGO4D_Dataset(Dataset):
 
 def my_collate(batch):
     frames_list=[]
-    mask_list=[]
-    frame_path_list=[]
-    bbox_list=[]
-    cls_list=[]
+    info_list=[]
     for item in batch:
         frames_list.append(item[0])
-        bbox_list.append(item[1])
-        frame_path_list.append(item[2])
-        mask_list.append(item[3])
-        cls_list.append(item[4])
-    return torch.stack(frames_list),bbox_list,(frame_path_list),torch.stack(mask_list),cls_list
+        info_list.append(item[1])
+    return torch.stack(frames_list),info_list
 
 
 def create_loader(mode='train'):
@@ -133,7 +127,8 @@ def create_loader(mode='train'):
                                   shuffle=False,
                                   num_workers=16,
                                   pin_memory=True,
-                                  drop_last=True)
+                                  drop_last=True,
+                                  collate_fn=my_collate)
     return data_loader
 
 def main_base():

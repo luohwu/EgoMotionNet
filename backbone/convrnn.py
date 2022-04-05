@@ -92,4 +92,6 @@ if __name__ == '__main__':
     crnn = ConvGRU(input_size=10, hidden_size=20, kernel_size=3, num_layers=2)
     data = torch.randn(4, 5, 10, 6, 6) # [B, seq_len, C, H, W], temporal axis=1
     output, hn = crnn(data)
-    import ipdb; ipdb.set_trace()
+    print(output.shape)
+    print(hn.shape)
+    # import ipdb; ipdb.set_trace()
