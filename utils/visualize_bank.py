@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 from comet_ml import Experiment
 experiment = Experiment(
     api_key="wU5pp8GwSDAcedNSr68JtvCpk",
@@ -48,33 +49,29 @@ def main():
     # pretrain
     args.pretrain=True
     dirname = os.path.dirname(__file__)
-    pretrain_model_path=os.path.join(dirname,'pretrain/k400_128_r18_dpc-rnn.pth.tar')
+    pretrain_model_path=os.path.join(args.exp_path,'EGO4D/SSL/ckpts', f'model_epoch_{50}.pth')
     if args.pretrain:
         if os.path.isfile(pretrain_model_path):
             print("=> loading pretrained checkpoint '{}'".format(pretrain_model_path))
             checkpoint = torch.load(pretrain_model_path, map_location=torch.device('cpu'))
-            model = neq_load_customized(model, checkpoint['state_dict'])
+            model = neq_load_customized(model, checkpoint['model_state_dict'])
             print("=> loaded pretrained checkpoint '{}' (epoch {})"
                   .format(args.pretrain, checkpoint['epoch']))
         else:
             print("=> no checkpoint found at '{}'".format(args.pretrain))
+    model=model.module.cpu()
+    bank=model.interaction_bank
+    for i in range(bank.shape[0]):
+        bank_entry=bank[i].detach().cpu()
+        plt.clf()
+        plt.imshow(bank_entry,cmap='gray')
+        plt.savefig(os.path.join(args.exp_path,'EGO4D/SSL/bank',f'{i}.png'))
 
-    train_loader = create_loader('train')
-    val_loader=create_loader('val')
-    epoch_save = 50
-    for epoch in range( 1000):
-        train_loss, train_acc, train_accuracy_list = train(train_loader, model, optimizer, epoch)
-        print(f"epoch {epoch}:  training loss: {train_loss}, training_acc: {train_acc}")
-        experiment.log_metric( "epoch-top1-acc", train_acc, step=epoch)
-        experiment.log_metric( "epoch-loss", train_loss, step=epoch)
-        if epoch>0 and epoch%epoch_save==0:
-            checkpoint_path = os.path.join('/data/luohwu/experiments/EGO4D/SSL/ckpts', f'model_epoch_{epoch}.pth')
-            print(checkpoint_path)
 
-            torch.save({'epoch': epoch,
-                        'model_state_dict': model.state_dict()
-                        },
-                       checkpoint_path)
+    # train_loader = create_loader('train')
+    # val_loader=create_loader('val')
+    # val_loss,val_acc,val_acc_list=validate(train_loader,model,epoch=1)
+
 
 
 def process_output(mask):
@@ -85,56 +82,6 @@ def process_output(mask):
     target = mask == 1
     target.requires_grad = False
     return target, (B, B2, NS, NP, SQ)
-
-def train(data_loader, model, optimizer, epoch):
-    losses = AverageMeter()
-    accuracy = AverageMeter()
-    accuracy_list = [AverageMeter(), AverageMeter(), AverageMeter()]
-    model.train()
-    global iteration
-
-    for idx, data in enumerate(data_loader):
-        # print(f"current iteration: {iteration}")
-        # print(f"current progress: {idx}/{len(data_loader.dataset)}")
-        input_seq,df_item=data
-        input_seq = input_seq.to(device)
-        B = input_seq.size(0)
-        [score_, mask_] = model(input_seq)
-
-
-        if idx == 0: target_, (_, B2, NS, NP, SQ) = process_output(mask_)
-
-        # score is a 6d tensor: [B, P, SQ, B2, N, SQ]
-        # similarity matrix is computed inside each gpu, thus here B == num_gpu * B2
-        score_flattened = score_.view(B * NP * SQ, B2 * NS * SQ)
-        target_flattened = target_.view(B * NP * SQ, B2 * NS * SQ).to(device)
-        target_flattened = target_flattened.to(int).argmax(dim=1)
-
-        loss = criterion(score_flattened, target_flattened)
-        top1, top3, top5 = calc_topk_accuracy(score_flattened, target_flattened, (1, 3, 5))
-
-        accuracy_list[0].update(top1.item(), B)
-        accuracy_list[1].update(top3.item(), B)
-        accuracy_list[2].update(top5.item(), B)
-
-        losses.update(loss.item(), B)
-        accuracy.update(top1.item(), B)
-        # experiment.log_metric( "iteration-top1-acc", accuracy.local_avg, step=iteration)
-        # experiment.log_metric( "iteration-loss", losses.local_avg, step=iteration)
-
-        del score_
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        del loss
-        iteration += 1
-
-
-
-
-    return losses.local_avg, accuracy.local_avg, [i.local_avg for i in accuracy_list]
 
 
 def validate(data_loader, model, epoch):

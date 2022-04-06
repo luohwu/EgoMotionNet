@@ -49,7 +49,7 @@ def main():
     # pretrain
     args.pretrain=True
     dirname = os.path.dirname(__file__)
-    pretrain_model_path=os.path.join(args.exp_path,'EGO4D/SSL/ckpts/model_epoch_200.pth')
+    pretrain_model_path=os.path.join(args.exp_path,'EGO4D/SSL/ckpts/model_epoch_100.pth')
     if args.pretrain:
         if os.path.isfile(pretrain_model_path):
             print("=> loading pretrained checkpoint '{}'".format(pretrain_model_path))
@@ -61,7 +61,7 @@ def main():
             print("=> no checkpoint found at '{}'".format(args.pretrain))
 
     train_loader = create_loader('train')
-    val_loader=create_loader('val')
+    # val_loader=create_loader('val')
 
     #================================================================================================
     #===================================
@@ -88,10 +88,11 @@ def main():
 
     if similarity_matrix_load==False:
         similarity_matrix=compute_similarity_matrix(data)
+        similarity_matrix=similarity_matrix.cpu().numpy()
         matrix_path=os.path.join(args.exp_path,'EGO4D/SSL/similarity_matrix.pkl')
         with open(matrix_path,'wb') as f:
             print('dumping similarity matrix')
-            pickle.dump(similarity_matrix.cpu().numpy(),f)
+            pickle.dump(similarity_matrix,f)
     else:
         matrix_path = os.path.join(args.exp_path, 'EGO4D/SSL/similarity_matrix.pkl')
         with open(matrix_path,'rb') as f:
@@ -101,8 +102,9 @@ def main():
     #===================================
     # start finding nearest neighbours
     #===================================
-    for idx in range(11,100):
+    for idx in range(0,100):
         nearest_neighbours(data, similarity_matrix, idx=idx)
+        input("Press Enter to continue...")
 
     print('here')
 
@@ -139,7 +141,7 @@ def compute_similarity_matrix(data):
     num_samples=len(data)
     similarity_matrix=torch.ones(num_samples,num_samples)*100
     similarity_matrix=similarity_matrix.to(device)
-    for i in range(num_samples):
+    for i in range(100):
         print(f"progress: {i}/{similarity_matrix.shape[0]}")
         query=data[i]['feature'].to(device)
         similarity_matrix[i,i]=-1
@@ -157,8 +159,11 @@ def nearest_neighbours(data,similarity_matrix,idx):
     similarity_vector=similarity_matrix[idx,:]
     top_3_idx=np.argsort(similarity_vector)[-3:][::-1]
     print(f'top 3 idx: {top_3_idx}')
-
-    query_frames=query['contact_block']
+    display_contact=False
+    if display_contact==False:
+        query_frames = [frame for block in query['pre_blocks'] for frame in block]
+    else:
+        query_frames = query['contact_block']
     target_foder = os.path.join(args.exp_path, f'EGO4D/SSL/query')
     os.system(f'rm {target_foder}/*.jpg')
     for frame in query_frames:
@@ -171,7 +176,11 @@ def nearest_neighbours(data,similarity_matrix,idx):
     os.system(f'rm {target_foder}/*.jpg')
     for idx in top_3_idx:
         key=data[idx]['info']
-        key_frames=key['contact_block']
+        if display_contact == False:
+            key_frames = [frame for block in key['pre_blocks'] for frame in block]
+        else:
+            key_frames = key['contact_block']
+
         for frame in key_frames:
             image_file = os.path.join(args.frames_path, key['clip_uid'], f'frame_{str(frame).zfill(10)}.jpg')
             target_file = os.path.join(target_foder, f'frame_{str(frame).zfill(10)}.jpg')
