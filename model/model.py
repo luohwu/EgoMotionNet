@@ -23,7 +23,7 @@ class DPC_RNN(nn.Module):
         self.seq_len = seq_len
         self.pred_step = pred_step
         self.last_duration = int(math.ceil(seq_len / 4))
-        self.last_size = int(math.ceil(sample_size / 32))
+        self.last_size = int(math.ceil(sample_size / 16))
         print('final feature map has size %dx%d' % (self.last_size, self.last_size))
 
         self.backbone, self.param = select_resnet(network, track_running_stats=False)
@@ -77,7 +77,7 @@ class DPC_RNN(nn.Module):
         ### Get similarity score ###
         # from C to D, 3->256 num_channels
         # pred: [B, pred_step, D, last_size, last_size]
-        # GT: [B, N, D, last_size, last_size]
+        # GT: [B, pred_step, D, last_size, last_size]
         N = self.pred_step
         # dot product D dimension in pred-GT pair, get a 6d tensor. First 3 dims are from pred, last 3 dims are from GT.
         # pred.shape=(B,N,D,last_size,last_size)
@@ -127,7 +127,7 @@ class DPC_RNN_Extractor(nn.Module):
         self.seq_len = seq_len
         self.pred_step = pred_step
         self.last_duration = int(math.ceil(seq_len / 4))
-        self.last_size = int(math.ceil(sample_size / 32))
+        self.last_size = int(math.ceil(sample_size / 16))
         print('final feature map has size %dx%d' % (self.last_size, self.last_size))
 
         self.backbone, self.param = select_resnet(network, track_running_stats=False)
@@ -229,13 +229,24 @@ class DPC_RNN_Extractor(nn.Module):
 
 if __name__=='__main__':
     device=torch.device('cpu')
-    model = DPC_RNN_Extractor(sample_size=128,
+    # model = DPC_RNN_Extractor(sample_size=128,
+    #                 num_seq=6,
+    #                 seq_len=5,
+    #                 network='resnet18',
+    #                 pred_step=1).to(device)
+    # # block: [B, N, C, SL, W, H]
+    # input=torch.randn((4,6,3,5,128,128))
+    # context,_=model(input)
+    # print('context shape:')
+    # print(context.shape)
+
+    model = DPC_RNN(sample_size=128,
                     num_seq=6,
                     seq_len=5,
                     network='resnet18',
                     pred_step=1).to(device)
     # block: [B, N, C, SL, W, H]
     input=torch.randn((4,6,3,5,128,128))
-    context,_=model(input)
+    score,_=model(input)
     print('context shape:')
-    print(context.shape)
+    print(score.shape)

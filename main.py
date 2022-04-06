@@ -93,9 +93,10 @@ def train(data_loader, model, optimizer, epoch):
     model.train()
     global iteration
 
-    for idx, input_seq in enumerate(data_loader):
+    for idx, data in enumerate(data_loader):
         # print(f"current iteration: {iteration}")
         # print(f"current progress: {idx}/{len(data_loader.dataset)}")
+        input_seq,df_item=data
         input_seq = input_seq.to(device)
         B = input_seq.size(0)
         [score_, mask_] = model(input_seq)
