@@ -20,7 +20,7 @@ from utils.utils import AverageMeter, save_checkpoint, denorm, calc_topk_accurac
 import time
 import pickle
 device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+import  cv2
 
 def main():
     print(f'using :{torch.cuda.device_count()} GPUs')
@@ -49,12 +49,12 @@ def main():
     # pretrain
     args.pretrain=True
     dirname = os.path.dirname(__file__)
-    pretrain_model_path=os.path.join(args.exp_path,'EGO4D/SSL/ckpts/model_epoch_100.pth')
+    pretrain_model_path=os.path.join(args.exp_path,'EGO4D/SSL/ckpts/model_epoch_120.pth')
     if args.pretrain:
         if os.path.isfile(pretrain_model_path):
             print("=> loading pretrained checkpoint '{}'".format(pretrain_model_path))
             checkpoint = torch.load(pretrain_model_path, map_location=torch.device('cpu'))
-            model.load_state_dict(checkpoint['model_state_dict'],strict=False)
+            model.load_state_dict(checkpoint['model_state_dict'],strict=True)
             print("=> loaded pretrained checkpoint '{}' (epoch {})"
                   .format(args.pretrain, checkpoint['epoch']))
         else:
@@ -67,13 +67,13 @@ def main():
     #===================================
     #feature data
     #===================================
-    # data=extract_features(train_loader,model)
-    # print(f'final data length: {len(data)}')
-    #
-    # pickle_path=os.path.join(args.exp_path,'EGO4D/SSL/data.pkl')
-    # with open(pickle_path,'wb') as f:
-    #     print('trying to dump data into pickle file')
-    #     pickle.dump(data,f)
+    data=extract_features(train_loader,model)
+    print(f'final data length: {len(data)}')
+
+    pickle_path=os.path.join(args.exp_path,'EGO4D/SSL/data.pkl')
+    with open(pickle_path,'wb') as f:
+        print('trying to dump data into pickle file')
+        pickle.dump(data,f)
 
     pickle_path=os.path.join(args.exp_path,'EGO4D/SSL/data.pkl')
     with open(pickle_path,'rb') as f:
@@ -84,7 +84,7 @@ def main():
     #===================================
     #similarity matrix
     #===================================
-    similarity_matrix_load=True
+    similarity_matrix_load=False
 
     if similarity_matrix_load==False:
         similarity_matrix=compute_similarity_matrix(data)
@@ -141,7 +141,7 @@ def compute_similarity_matrix(data):
     num_samples=len(data)
     similarity_matrix=torch.ones(num_samples,num_samples)*100
     similarity_matrix=similarity_matrix.to(device)
-    for i in range(100):
+    for i in range(1000):
         print(f"progress: {i}/{similarity_matrix.shape[0]}")
         query=data[i]['feature'].to(device)
         similarity_matrix[i,i]=-1
@@ -165,16 +165,29 @@ def nearest_neighbours(data,similarity_matrix,idx):
     else:
         query_frames = query['contact_block']
     target_foder = os.path.join(args.exp_path, f'EGO4D/SSL/query')
-    os.system(f'rm {target_foder}/*.jpg')
+    os.system(f'rm {target_foder}/*.*')
+    #write images to video
+    fourcc = cv2.VideoWriter_fourcc(*'MPEG')
+    video_path=os.path.join(target_foder,'query.avi')
+    video_stream = cv2.VideoWriter(video_path, fourcc, 15, (224, 224), isColor=True)
+
     for frame in query_frames:
         image_file=os.path.join(args.frames_path,query['clip_uid'],f'frame_{str(frame).zfill(10)}.jpg')
         target_file=os.path.join(target_foder,f'frame_{str(frame).zfill(10)}.jpg')
         os.system(f'cp {image_file} {target_file}')
+        video_stream.write(cv2.imread(target_file))
+        # read images and write to videos
+    video_stream.release()
+
+
 
 
     target_foder = os.path.join(args.exp_path, f'EGO4D/SSL/top_3/')
-    os.system(f'rm {target_foder}/*.jpg')
+    os.system(f'rm {target_foder}/*.*')
     for idx in top_3_idx:
+        fourcc = cv2.VideoWriter_fourcc(*'MPEG')
+        video_path = os.path.join(target_foder, f'{idx}.avi')
+        video_stream = cv2.VideoWriter(video_path, fourcc, 15, (224, 224), isColor=True)
         key=data[idx]['info']
         if display_contact == False:
             key_frames = [frame for block in key['pre_blocks'] for frame in block]
@@ -185,6 +198,8 @@ def nearest_neighbours(data,similarity_matrix,idx):
             image_file = os.path.join(args.frames_path, key['clip_uid'], f'frame_{str(frame).zfill(10)}.jpg')
             target_file = os.path.join(target_foder, f'frame_{str(frame).zfill(10)}.jpg')
             os.system(f'cp {image_file} {target_file}')
+            video_stream.write(cv2.imread(target_file))
+        video_stream.release()
 
 
 

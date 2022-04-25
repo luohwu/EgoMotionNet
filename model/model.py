@@ -23,7 +23,7 @@ class DPC_RNN(nn.Module):
         self.seq_len = seq_len
         self.pred_step = pred_step
         self.last_duration = int(math.ceil(seq_len / 4))
-        self.last_size = int(math.ceil(sample_size / 8))
+        self.last_size = int(math.ceil(sample_size / 16))
         print('final feature map has size %dx%d' % (self.last_size, self.last_size))
 
         self.backbone, self.param = select_resnet(network, track_running_stats=False)
@@ -174,6 +174,10 @@ class DPC_RNN_Extractor(nn.Module):
         ### aggregate, predict future ###
         _, hidden = self.agg(feature[:, 0:N-self.pred_step, :].contiguous())
         hidden = hidden[:,-1,:] # after tanh, (-1,1). get the hidden state of last layer, last time step
+        context=hidden
+        # print(f'shape of context: {context.shape}')
+        context=torch.flatten(context,start_dim=1)
+
 
         pred = []
         for i in range(self.pred_step):
@@ -190,7 +194,7 @@ class DPC_RNN_Extractor(nn.Module):
         # pred_pooled=pred_pooled.squeeze(1)
 
 
-        return [pred_pooled, None]
+        return [context, None]
 
     def _initialize_weights(self, module):
         for name, param in module.named_parameters():

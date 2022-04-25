@@ -218,7 +218,7 @@ class ResNet2d3d_full(nn.Module):
 
         self.layer1 = self._make_layer(block[0], 64, layers[0])
         self.layer2 = self._make_layer(block[1], 128, layers[1], stride=2)
-        self.layer3 = self._make_layer(block[2], 256, layers[2], stride=[2,1,1])
+        self.layer3 = self._make_layer(block[2], 256, layers[2], stride=[2,2,2])
         self.layer4 = self._make_layer(block[3], 256, layers[3], stride=[2,1,1], is_final=True)
         # modify layer4 from exp=512 to exp=256
         for m in self.modules():

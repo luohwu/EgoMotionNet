@@ -19,7 +19,7 @@ from data.dataset import create_loader
 from utils.utils import AverageMeter, save_checkpoint, denorm, calc_topk_accuracy
 import time
 device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+experiment.log_parameters(args.__dict__)
 
 def main():
     print(f'using :{torch.cuda.device_count()} GPUs')
@@ -37,7 +37,7 @@ def main():
 
 
     params = model.parameters()
-    optimizer = optim.Adam(params, lr=args.lr, weight_decay=1e-5)
+    optimizer = optim.Adam(params, lr=3e-4, weight_decay=1e-5)
     args.old_lr = None
     best_acc = 0
     global iteration
@@ -61,12 +61,16 @@ def main():
 
     train_loader = create_loader('train')
     val_loader=create_loader('val')
-    epoch_save = 50
+    print(f'size of train split: {len(train_loader.dataset)}, size of val split: {len(val_loader.dataset)}')
+    epoch_save = 20
     for epoch in range( 1000):
         train_loss, train_acc, train_accuracy_list = train(train_loader, model, optimizer, epoch)
-        print(f"epoch {epoch}:  training loss: {train_loss}, training_acc: {train_acc}")
-        experiment.log_metric( "epoch-top1-acc", train_acc, step=epoch)
-        experiment.log_metric( "epoch-loss", train_loss, step=epoch)
+        val_loss, val_acc, val_accuracy_list = validate(val_loader, model, epoch)
+        print(f"epoch {epoch}:  train loss: {train_loss}, train acc: {train_acc}, val loss: {val_loss}, val acc: {val_acc} ")
+        experiment.log_metric( "train top1-acc", train_acc, step=epoch)
+        experiment.log_metric( "train loss", train_loss, step=epoch)
+        experiment.log_metric( "val top1-acc", val_acc, step=epoch)
+        experiment.log_metric( "val loss", val_loss, step=epoch)
         if epoch>0 and epoch%epoch_save==0:
             checkpoint_path = os.path.join('/data/luohwu/experiments/EGO4D/SSL/ckpts', f'model_epoch_{epoch}.pth')
             print(checkpoint_path)
@@ -168,9 +172,6 @@ def validate(data_loader, model, epoch):
             accuracy_list[1].update(top3.item(), B)
             accuracy_list[2].update(top5.item(), B)
 
-    print('[{0}/{1}] Loss {loss.local_avg:.4f}\t'
-          'Acc: top1 {2:.4f}; top3 {3:.4f}; top5 {4:.4f} \t'.format(
-           epoch, args.epochs, *[i.avg for i in accuracy_list], loss=losses))
     return losses.local_avg, accuracy.local_avg, [i.local_avg for i in accuracy_list]
 
 
