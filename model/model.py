@@ -187,14 +187,15 @@ class DPC_RNN_Extractor(nn.Module):
             _, hidden = self.agg(self.relu(p_tmp).unsqueeze(1), hidden.unsqueeze(0))
             hidden = hidden[:,-1,:]
         pred = torch.stack(pred, 1) # B, pred_step, xxx
-        pred_pooled=torch.flatten(pred,start_dim=1)
-
+        pred_pooled = F.adaptive_avg_pool2d(pred, output_size=(1, 1)).squeeze(-1).squeeze(
+            -1)  # B,pred_step, feature_size
+        pred_pooled=torch.softmax(pred_pooled,dim=-1)
 
         # pred_pooled=F.adaptive_avg_pool2d(pred,output_size=(1,1)).squeeze(-1).squeeze(-1)  # B,pred_step, feature_size
         # pred_pooled=pred_pooled.squeeze(1)
 
 
-        return [context, None]
+        return [context, pred_pooled.squeeze(1)]
 
     def _initialize_weights(self, module):
         for name, param in module.named_parameters():

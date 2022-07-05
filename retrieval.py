@@ -1,4 +1,5 @@
 from comet_ml import Experiment
+import matplotlib.pyplot as plt
 experiment = Experiment(
     api_key="wU5pp8GwSDAcedNSr68JtvCpk",
     project_name="self-supervised-representation-learning",
@@ -67,13 +68,13 @@ def main():
     #===================================
     #feature data
     #===================================
-    data=extract_features(train_loader,model)
-    print(f'final data length: {len(data)}')
-
-    pickle_path=os.path.join(args.exp_path,'EGO4D/SSL/data.pkl')
-    with open(pickle_path,'wb') as f:
-        print('trying to dump data into pickle file')
-        pickle.dump(data,f)
+    # data=extract_features(train_loader,model)
+    # print(f'final data length: {len(data)}')
+    #
+    # pickle_path=os.path.join(args.exp_path,'EGO4D/SSL/data.pkl')
+    # with open(pickle_path,'wb') as f:
+    #     print('trying to dump data into pickle file')
+    #     pickle.dump(data,f)
 
     pickle_path=os.path.join(args.exp_path,'EGO4D/SSL/data.pkl')
     with open(pickle_path,'rb') as f:
@@ -84,7 +85,7 @@ def main():
     #===================================
     #similarity matrix
     #===================================
-    similarity_matrix_load=False
+    similarity_matrix_load=True
 
     if similarity_matrix_load==False:
         similarity_matrix=compute_similarity_matrix(data)
@@ -124,13 +125,15 @@ def extract_features(data_loader, model):
         input_seq,input_info=data
         input_seq = input_seq.to(device)
         B = input_seq.size(0)
-        features, _ = model(input_seq)
+        features, bank_combination = model(input_seq)
         for i in range(features.shape[0]):
             info=input_info[i]
             feature=features[i].detach().cpu()
             data={}
             data['info']=info
-            data['feature']=feature
+            data['feature'] = feature
+            data['bank_combination'] = bank_combination[i].detach().cpu().tolist()
+
             data_list.append(data)
 
     return data_list
@@ -155,7 +158,13 @@ def compute_similarity_matrix(data):
     return similarity_matrix
 
 def nearest_neighbours(data,similarity_matrix,idx):
+    fig=plt.figure(figsize=(12,4))
+
+    # fig,axs=plt.subplots(4)
+    # fig.set_figheight(15)
+    # fig.set_figwidth(15)
     query=data[idx]['info']
+    bank_combination=data[idx]['bank_combination']
     similarity_vector=similarity_matrix[idx,:]
     top_3_idx=np.argsort(similarity_vector)[-3:][::-1]
     print(f'top 3 idx: {top_3_idx}')
@@ -164,16 +173,24 @@ def nearest_neighbours(data,similarity_matrix,idx):
         query_frames = [frame for block in query['pre_blocks'] for frame in block]
     else:
         query_frames = query['contact_block']
-    target_foder = os.path.join(args.exp_path, f'EGO4D/SSL/query')
-    os.system(f'rm {target_foder}/*.*')
+    target_foder_query = os.path.join(args.exp_path, f'EGO4D/SSL/query')
+    os.system(f'rm {target_foder_query}/*.*')
+    # print(bank_combination)
+    plt.bar(x=range(len(bank_combination)),height=bank_combination,width=1.5)
+    plt.xlabel('index of bank entry')
+    plt.ylabel('percentage')
+    plt.savefig(os.path.join(target_foder_query, 'bank.png'))
+
+    plt.clf()
+
     #write images to video
     fourcc = cv2.VideoWriter_fourcc(*'MPEG')
-    video_path=os.path.join(target_foder,'query.avi')
+    video_path=os.path.join(target_foder_query,'query.avi')
     video_stream = cv2.VideoWriter(video_path, fourcc, 15, (224, 224), isColor=True)
 
     for frame in query_frames:
         image_file=os.path.join(args.frames_path,query['clip_uid'],f'frame_{str(frame).zfill(10)}.jpg')
-        target_file=os.path.join(target_foder,f'frame_{str(frame).zfill(10)}.jpg')
+        target_file=os.path.join(target_foder_query,f'frame_{str(frame).zfill(10)}.jpg')
         os.system(f'cp {image_file} {target_file}')
         video_stream.write(cv2.imread(target_file))
         # read images and write to videos
@@ -184,11 +201,17 @@ def nearest_neighbours(data,similarity_matrix,idx):
 
     target_foder = os.path.join(args.exp_path, f'EGO4D/SSL/top_3/')
     os.system(f'rm {target_foder}/*.*')
-    for idx in top_3_idx:
+    for plot_idx,idx in enumerate(top_3_idx):
         fourcc = cv2.VideoWriter_fourcc(*'MPEG')
         video_path = os.path.join(target_foder, f'{idx}.avi')
         video_stream = cv2.VideoWriter(video_path, fourcc, 15, (224, 224), isColor=True)
         key=data[idx]['info']
+        bank_combination = data[idx]['bank_combination']
+        plt.bar(x=range(len(bank_combination)), height=bank_combination,width=1.5)
+        plt.xlabel('index of bank entry')
+        plt.ylabel('percentage')
+        plt.savefig(os.path.join(target_foder,f'bank_{plot_idx}.png'))
+        plt.clf()
         if display_contact == False:
             key_frames = [frame for block in key['pre_blocks'] for frame in block]
         else:
@@ -200,6 +223,7 @@ def nearest_neighbours(data,similarity_matrix,idx):
             os.system(f'cp {image_file} {target_file}')
             video_stream.write(cv2.imread(target_file))
         video_stream.release()
+
 
 
 
