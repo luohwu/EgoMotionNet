@@ -14,7 +14,7 @@ from torch import nn
 from torch import optim
 import numpy as np
 
-from model.model import DPC_RNN
+from model.model import EgoMotionNet
 from backbone.resnet_2d3d import neq_load_customized
 from data.dataset import create_loader
 from utils.utils import AverageMeter, save_checkpoint, denorm, calc_topk_accuracy
@@ -26,11 +26,11 @@ def main():
     print(f'using :{torch.cuda.device_count()} GPUs')
     torch.manual_seed(0)
     np.random.seed(0)
-    model = DPC_RNN(sample_size=128,
-                    num_seq=6,
-                    seq_len=5,
-                    network='resnet18',
-                    pred_step=1)
+    model = EgoMotionNet(sample_size=128,
+                         num_seq=6,
+                         seq_len=5,
+                         network='resnet18',
+                         pred_step=1)
     model=nn.DataParallel(model)
     model=model.to(device)
     global criterion
@@ -46,7 +46,7 @@ def main():
 
 
     #=================================================
-    # pretrain
+    # pre-trained_models
     args.pretrain=True
     dirname = os.path.dirname(__file__)
     pretrain_model_path=os.path.join(args.exp_path,'EGO4D/SSL/ckpts', f'model_epoch_{50}.pth')

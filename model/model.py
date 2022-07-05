@@ -11,11 +11,11 @@ from backbone.select_backbone import select_resnet
 from backbone.convrnn import ConvGRU
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-class DPC_RNN(nn.Module):
+class EgoMotionNet(nn.Module):
     '''DPC with RNN'''
     def __init__(self, sample_size, num_seq=6, seq_len=5, pred_step=1, network='resnet18'):
         # sample_size is size of input images, i.e. (128,128)
-        super(DPC_RNN, self).__init__()
+        super(EgoMotionNet, self).__init__()
         torch.cuda.manual_seed(233)
         print('Using DPC-RNN model')
         self.sample_size = sample_size
@@ -121,11 +121,11 @@ class DPC_RNN(nn.Module):
         self.mask = None
 
 
-class DPC_RNN_Extractor(nn.Module):
+class EgoMotionNet_Extractor(nn.Module):
     '''DPC with RNN'''
     def __init__(self, sample_size, num_seq=6, seq_len=5, pred_step=1, network='resnet18'):
         # sample_size is size of input images, i.e. (128,128)
-        super(DPC_RNN_Extractor, self).__init__()
+        super(EgoMotionNet_Extractor, self).__init__()
         torch.cuda.manual_seed(233)
         print('Using DPC-RNN model')
         self.sample_size = sample_size
@@ -337,11 +337,11 @@ if __name__=='__main__':
     # print('context shape:')
     # print(context.shape)
 
-    model = DPC_RNN(sample_size=128,
-                    num_seq=6,
-                    seq_len=5,
-                    network='resnet18',
-                    pred_step=1).to(device)
+    model = EgoMotionNet(sample_size=128,
+                         num_seq=6,
+                         seq_len=5,
+                         network='resnet18',
+                         pred_step=1).to(device)
     # block: [B, N, C, SL, W, H]
     input=torch.randn((4,6,3,5,128,128))
     score,_=model(input)

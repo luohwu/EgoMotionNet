@@ -34,19 +34,18 @@ parser.add_argument('--debug', default=False,action='store_true', help='debug')
 parser.add_argument('--bs', default=32, type=int, help='batch size')
 parser.add_argument('--epochs', default=1000, type=int, help='Number of epochs')
 parser.add_argument('--lr', default=0.000002, type=float, help='learning rate')
+parser.add_argument('--data_path', default='/home/luohwu/ait-data/dataset/EGO4D', type=str,
+                    help='path to data')
+parser.add_argument('--exp_path', default='/home/luohwu/ait-data/experiments', type=str,
+                    help='path to experiment')
 
 args = parser.parse_args()
 if args.ait:
     args.data_path = '/data/luohwu/dataset/EGO4D'
-    args.annos_path = '/data/luohwu/dataset/EGO4D/ssl_annotations'
-    args.frames_path = '/data/luohwu/dataset/EGO4D/rgb_frames_ssl'
     args.exp_path = '/data/luohwu/experiments'
-else:
-    args.data_path = '/home/luohwu/ait-data/dataset/EGO4D'
-    args.annos_path = '/home/luohwu/ait-data/dataset/EGO4D/ssl_annotations'
-    args.frames_path = '/home/luohwu/ait-data/dataset/EGO4D/rgb_frames_ssl'
-    args.exp_path = '/home/luohwu/ait-data/experiments'
 
+args.annos_path=os.path.join(args.data_path,'ssl_annotations')
+args.frames_path=os.path.join(args.data_path,'rgb_frames_ssl')
 
 # args.data_path='/media/luohwu/T7/dataset/EGO4D/' if args.euler==False else os.path.join(os.environ['TMPDIR'],'dataset','EGO4D')
 # # args.data_path='/home/luohwu/nobackup/training/dataset/EGO4D' if args.euler==False else '/cluster/work/hilliges/luohwu/nobackup/training/dataset/EGO4D'
